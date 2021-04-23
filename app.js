@@ -43,7 +43,8 @@ mongoose.set('useCreateIndex', true);
 const userSchema = new mongoose.Schema({
     email: String,
     password: String,
-    googleId: String
+    googleId: String,
+    secret: String
 });
 
 userSchema.plugin(passportLocalMongoose);
@@ -132,12 +133,43 @@ app.get("/register", function (req, res) {
 });
 
 app.get("/secrets", function (req, res) {
+    //find the objects inside the secret field which are not equal to null
+    User.find({"secret":{$ne: null}}, function(err, foundUsers){
+        if(foundUsers){
+            res.render("secrets", {usersWithSecrets: foundUsers});
+        }
+    });
+});
+
+// reading the submit page when the user is authorized
+app.get("/submit", function (req, res) {
     if (req.isAuthenticated()) {
-        res.render("secrets");
+        res.render("submit");
     } else {
-        res.redirect("/login");
+        res.redirect("login");
     }
-})
+});
+
+// Using the post method to add the new secret from the submit page
+app.post("/submit", function (req, res) {
+    // Setting a constant for the type in secret
+    const submittedSecret = req.body.secret;
+
+    // Using mongoose findById method to find the user
+    User.findById(req.user.id, function (err, foundUser) {
+        if (err) {
+            console.log(err);
+        } else {
+            // if the user is found than save the secret to the user's field named secret
+            if (foundUser) {
+                foundUser.secret = submittedSecret;
+                foundUser.save(function () {
+                    res.redirect("/secrets");
+                });
+            }
+        }
+    });
+});
 
 app.get("/logout", function (req, res) {
     req.logout();
